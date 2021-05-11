@@ -122,24 +122,37 @@ func (server *Server) OpenBlob(d digest.Digest, info *os.FileInfo) (*os.File, er
 	return fd, nil
 }
 
-func (server *Server) HeadBlob(w http.ResponseWriter, r *http.Request) {
-	repo := chi.URLParam(r, "repo")
-	rawDigest := chi.URLParam(r, "digest")
+func MustParseDigest(raw string, w http.ResponseWriter) digest.Digest {
 
-	fmt.Printf("raw digest: '%s'\n", rawDigest)
+	d, err := digest.Parse(raw)
 
-	d, err := digest.Parse(rawDigest)
 	if err != nil {
-		http.Error(w, http.StatusText(500), 500)
-		return
+		msg := fmt.Sprintf("Invalid digest: '%s'", raw)
+		http.Error(w, msg, http.StatusBadRequest)
+		return ""
 	}
 
-	fmt.Printf("digest: '%s'\n", d.Hex())
+	return d
+}
+
+func MustHaveDigest(w http.ResponseWriter, r *http.Request) digest.Digest {
+	raw := chi.URLParam(r, "digest")
+	checksum := MustParseDigest(raw, w)
+	return checksum
+}
+
+func (server *Server) HeadBlob(w http.ResponseWriter, r *http.Request) {
+	repo := chi.URLParam(r, "repo")
+
+	d := MustHaveDigest(w, r)
+	if d == "" {
+		return
+	}
 
 	fmt.Printf("repo: '%s', digest: '%s'\n", repo, d.String())
 
 	var fi os.FileInfo
-	_, err = server.OpenBlob(d, &fi)
+	_, err := server.OpenBlob(d, &fi)
 	if err != nil {
 		if os.IsNotExist(err) {
 			http.Error(w, "Blob does not exist", 404)
@@ -159,19 +172,10 @@ func (server *Server) HeadBlob(w http.ResponseWriter, r *http.Request) {
 
 func (server *Server) GetBlob(w http.ResponseWriter, r *http.Request) {
 	repo := chi.URLParam(r, "repo")
-	rawDigest := chi.URLParam(r, "digest")
 
-	fmt.Printf("raw digest: '%s'\n", rawDigest)
-
-	var d digest.Digest
-	if rawDigest != "" {
-		d, err := digest.Parse(rawDigest)
-		if err != nil {
-			http.Error(w, http.StatusText(500), 500)
-			return
-		}
-
-		fmt.Printf("digest: '%s'\n", d.Hex())
+	d := MustHaveDigest(w, r)
+	if d == "" {
+		return
 	}
 
 	fmt.Printf("repo: '%s', digest: '%s'\n", repo, d.String())
@@ -247,21 +251,6 @@ func (server *Server) UploadChunked(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rawDigest := r.URL.Query().Get("digest")
-	if rawDigest != "" {
-		d, err := digest.Parse(rawDigest)
-		if err != nil {
-			http.Error(w, http.StatusText(500), 500)
-			return
-		}
-
-		fmt.Printf("digest: '%s'\n", d.Hex())
-	}
-
-	for k, v := range r.Header {
-		fmt.Printf("HDR %s: %s\n", k, v)
-	}
-
 	rawRange := r.Header.Get("Content-Range")
 	if rawRange != "" {
 
@@ -315,17 +304,26 @@ func (server *Server) UploadFinish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rawDigest := r.URL.Query().Get("digest")
-	if rawDigest == "" {
-		http.Error(w, "Invalid request: digest missing", 400)
+	checksum := MustParseDigest(rawDigest, w)
+	if checksum == "" {
 		return
 	}
-	d, err := digest.Parse(rawDigest)
+
+	fmt.Printf("digest: '%s'\n", checksum.Hex())
+
+	have, err := checksum.Algorithm().FromReader(file)
+
 	if err != nil {
 		http.Error(w, http.StatusText(500), 500)
 		return
 	}
 
-	fmt.Printf("digest: '%s'\n", d.Hex())
+	if have != checksum {
+		http.Error(w, "Checksum mismatch", http.StatusBadRequest)
+		return
+	}
+
+	file.Seek(0, 0)
 
 	hasher := sha256.New()
 	if _, err := io.Copy(hasher, file); err != nil {
@@ -333,7 +331,7 @@ func (server *Server) UploadFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	d = digest.NewDigest("sha256", hasher)
+	d := digest.NewDigest("sha256", hasher)
 
 	blobs := filepath.Join(server.root, "blobs", "sha256")
 	err = os.MkdirAll(blobs, 0770)
