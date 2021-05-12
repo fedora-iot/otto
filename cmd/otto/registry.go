@@ -53,6 +53,13 @@ func (reg *Registry) PathForBlob(d digest.Digest) string {
 	return filepath.Join(reg.Path, "blobs", d.Algorithm().String(), d.Hex())
 }
 
+func (reg *Registry) HasBlob(d digest.Digest) bool {
+	target := reg.PathForBlob(d)
+	_, err := os.Stat(target)
+
+	return err == nil
+}
+
 func (reg *Registry) OpenBlob(d digest.Digest, info *os.FileInfo) (*os.File, error) {
 	blob := reg.PathForBlob(d)
 
