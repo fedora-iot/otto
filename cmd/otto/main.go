@@ -225,6 +225,12 @@ func (server *Server) UploadManifest(w http.ResponseWriter, r *http.Request) {
 	reference := chi.URLParam(r, "reference")
 
 	ct := r.Header.Get("Content-Type")
+
+	if ct != v1.MediaTypeImageManifest {
+		http.Error(w, fmt.Sprintf("Invalid content type: %s", ct), http.StatusBadRequest)
+		return
+	}
+
 	fmt.Printf("repo: '%s', reference '%s' '%s'\n", repo, reference, ct)
 
 	var m v1.Manifest
