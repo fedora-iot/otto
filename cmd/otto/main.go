@@ -146,11 +146,11 @@ func (server *Server) HeadBlob(w http.ResponseWriter, r *http.Request) {
 	_, err := server.oci.OpenBlob(d, &fi)
 	if err != nil {
 		if os.IsNotExist(err) {
-			http.Error(w, "Blob does not exist", 404)
+			http.Error(w, "Blob does not exist", http.StatusNotFound)
 			return
 		}
 
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -158,7 +158,7 @@ func (server *Server) HeadBlob(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Docker-Content-Digest", d.String())
 
-	w.WriteHeader(200)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (server *Server) GetBlob(w http.ResponseWriter, r *http.Request) {
@@ -175,17 +175,17 @@ func (server *Server) GetBlob(w http.ResponseWriter, r *http.Request) {
 	fd, err := server.oci.OpenBlob(d, &fi)
 	if err != nil {
 		if os.IsNotExist(err) {
-			http.Error(w, "Blob does not exist", 404)
+			http.Error(w, "Blob does not exist", http.StatusNotFound)
 			return
 		}
 
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	_, err = io.CopyN(w, fd, fi.Size())
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
@@ -195,7 +195,7 @@ func (server *Server) BeginUpload(w http.ResponseWriter, r *http.Request) {
 
 	uid, err := server.oci.BeginBlob()
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -206,7 +206,7 @@ func (server *Server) BeginUpload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Docker-Upload-UUID", uid)
 
-	w.WriteHeader(202)
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func (server *Server) UploadChunked(w http.ResponseWriter, r *http.Request) {
@@ -218,7 +218,7 @@ func (server *Server) UploadChunked(w http.ResponseWriter, r *http.Request) {
 	fd, err := server.oci.ResumeBlob(uid, &fi)
 
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -236,7 +236,7 @@ func (server *Server) UploadChunked(w http.ResponseWriter, r *http.Request) {
 
 	n, err := io.CopyN(fd, r.Body, r.ContentLength)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -244,7 +244,7 @@ func (server *Server) UploadChunked(w http.ResponseWriter, r *http.Request) {
 
 	fi, err = fd.Stat()
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -253,7 +253,7 @@ func (server *Server) UploadChunked(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Docker-Upload-UUID", uid)
 
-	w.WriteHeader(202)
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func (server *Server) UploadFinish(w http.ResponseWriter, r *http.Request) {
@@ -268,12 +268,12 @@ func (server *Server) UploadFinish(w http.ResponseWriter, r *http.Request) {
 
 	checksum, err := server.oci.FinishBlob(uid, checksum)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Location", fmt.Sprintf("/v2/%s/blobs/%s", repo, checksum.String()))
-	w.WriteHeader(201)
+	w.WriteHeader(http.StatusCreated)
 }
 
 type CommitInfo struct {
@@ -322,13 +322,13 @@ func (server *Server) UploadManifest(w http.ResponseWriter, r *http.Request) {
 
 	d, err := server.oci.PutManifest(m)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	cid, err := server.ImportCommit(commit)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -337,7 +337,7 @@ func (server *Server) UploadManifest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Docker-Content-Digest", d.String())
 	w.Header().Set("OSTree-Commit-id", cid)
 
-	w.WriteHeader(201)
+	w.WriteHeader(http.StatusCreated)
 }
 
 func (server *Server) ImportCommit(ci CommitInfo) (string, error) {
