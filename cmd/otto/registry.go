@@ -67,6 +67,22 @@ func (reg *Registry) HasBlob(d digest.Digest) bool {
 	return err == nil
 }
 
+func (reg *Registry) BlobInfo(d digest.Digest) (*BlobInfo, error) {
+	target := reg.PathForBlob(d)
+	sb, err := os.Stat(target)
+
+	if err != nil {
+		return nil, err
+	}
+
+	info := BlobInfo{
+		Digest: d,
+		Size:   sb.Size(),
+	}
+
+	return &info, nil
+}
+
 func (reg *Registry) OpenBlob(d digest.Digest, info *os.FileInfo) (*os.File, error) {
 	blob := reg.PathForBlob(d)
 

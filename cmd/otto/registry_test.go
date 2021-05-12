@@ -109,4 +109,14 @@ func TestPutBlob(t *testing.T) {
 	if verify != info.Digest {
 		log.Fatalf("checksum mismatch: %s", info.Digest.String())
 	}
+
+	check, err := reg.BlobInfo(info.Digest)
+	if err != nil {
+		t.Fatalf("BlobInfo failed: %v", err)
+	}
+
+	if check.Size != 4 {
+		t.Fatalf("Invalid blbo size: %d", check.Size)
+	}
+
 }
