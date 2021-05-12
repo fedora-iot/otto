@@ -80,8 +80,7 @@ func (server *Server) HeadBlob(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("repo: '%s', digest: '%s'\n", repo, d.String())
 
-	var fi os.FileInfo
-	_, err := server.oci.OpenBlob(d, &fi)
+	info, err := server.oci.BlobInfo(d)
 	if err != nil {
 		if os.IsNotExist(err) {
 			http.Error(w, "Blob does not exist", http.StatusNotFound)
@@ -92,7 +91,7 @@ func (server *Server) HeadBlob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", fi.Size()))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size))
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Docker-Content-Digest", d.String())
 
