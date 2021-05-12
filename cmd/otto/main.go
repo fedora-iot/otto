@@ -243,9 +243,9 @@ func (server *Server) UploadManifest(w http.ResponseWriter, r *http.Request) {
 	var commit CommitInfo
 	commit.repo = m.Annotations["org.osbuild.ostree.repo"]
 	commit.ref = m.Annotations["org.osbuild.ostree.ref"]
-	layer_nr_str := m.Annotations["org.osbuild.ostree.layer_nr"]
+	layer_str := m.Annotations["org.osbuild.ostree.layer"]
 
-	layer_nr, err := strconv.Atoi(layer_nr_str)
+	layer_nr, err := strconv.Atoi(layer_str)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
