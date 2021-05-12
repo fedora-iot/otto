@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +15,7 @@ import (
 
 	_ "crypto/sha512"
 
+	"github.com/gicmo/otto/internal/ostree"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	digest "github.com/opencontainers/go-digest"
@@ -25,13 +25,15 @@ import (
 type Server struct {
 	root string
 
-	oci *Registry
+	oci  *Registry
+	repo *ostree.Repo
 }
 
 func NewServer(root string) *Server {
 	return &Server{
 		root: root,
 		oci:  NewRegistry(filepath.Join(root, "oci")),
+		repo: ostree.NewRepo(filepath.Join(root, "ostree", "repo")),
 	}
 }
 
@@ -39,6 +41,12 @@ func (server *Server) Init() error {
 	err := server.oci.Init()
 	if err != nil {
 		return fmt.Errorf("failed to init registry: %v", err)
+	}
+
+	err = server.repo.Init(ostree.ARCHIVE)
+
+	if err != nil {
+		return fmt.Errorf("failed to init ostree repo: %w", err)
 	}
 	return nil
 }
@@ -290,38 +298,22 @@ func (server *Server) ImportCommit(ci CommitInfo) (string, error) {
 	}
 
 	source := filepath.Join(tmp, strings.TrimLeft(ci.repo, "/"))
-	target := filepath.Join(server.root, "ostree", "repo")
 
-	cmd = exec.Command("ostree", "pull-local", source, "--repo", target, ci.ref)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	err = cmd.Run()
+	server.repo.PullLocal(source, ci.ref)
+
+	cid, err := server.repo.RevParse(ci.ref)
 
 	if err != nil {
-		return "", fmt.Errorf("failed to pull ostree ref: %v", err)
+		return "", err
 	}
 
-	fmt.Printf("rev-parse of %s\n", ci.ref)
-	cmd = exec.Command("ostree", "rev-parse", "--repo", target, ci.ref)
-
-	var res bytes.Buffer
-	cmd.Stdout = &res
-
-	err = cmd.Run()
-	fmt.Printf("rev-parse: %s\n", res.String())
+	err = server.repo.UpdateSummary()
 
 	if err != nil {
-		return "", fmt.Errorf("failed to resolve ostree ref '%s': %v", ci.ref, err)
+		return "", err
 	}
 
-	cmd = exec.Command("ostree", "summary", "-u", "--repo", target, ci.ref)
-	err = cmd.Run()
-
-	if err != nil {
-		return "", fmt.Errorf("failed to update ostree summary: %v", err)
-	}
-
-	return strings.TrimSpace(res.String()), nil
+	return cid, nil
 }
 
 func OstreeServer(r chi.Router, public string, repo string) {
@@ -356,22 +348,7 @@ func main() {
 		log.Fatalf("Failed to initialize server: %v", err)
 	}
 
-	repo := filepath.Join(server.root, "ostree", "repo")
-	err = os.MkdirAll(repo, 0700)
-	if err != nil {
-		log.Fatalf("Failed to create dir: %v", err)
-	}
-
-	cmd := exec.Command("ostree", "init", "--repo", repo, "--mode", "archive")
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	err = cmd.Run()
-
-	if err != nil {
-		log.Fatalf("Failed to initialize ostree repo: %v", err)
-	}
-
-	OstreeServer(r, "/ostree/repo", repo)
+	OstreeServer(r, "/ostree/repo", server.repo.Path())
 
 	r.Head("/v2/{repo}/blobs/{digest}", server.HeadBlob)
 	r.Get("/v2/{repo}/blobs/{digest}", server.GetBlob)
