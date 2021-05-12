@@ -17,6 +17,7 @@ import (
 
 	_ "crypto/sha512"
 
+	"github.com/gicmo/otto/internal/registry"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	digest "github.com/opencontainers/go-digest"
@@ -95,13 +96,13 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 type Server struct {
 	root string
 
-	oci *Registry
+	oci *registry.Registry
 }
 
 func NewServer(root string) *Server {
 	return &Server{
 		root: root,
-		oci:  NewRegistry(filepath.Join(root, "oci")),
+		oci:  registry.NewRegistry(filepath.Join(root, "oci")),
 	}
 }
 
