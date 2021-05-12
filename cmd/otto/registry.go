@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -17,6 +19,11 @@ type Registry struct {
 
 	hash  digest.Algorithm
 	blobs string
+}
+
+type BlobInfo struct {
+	Digest digest.Digest
+	Size   int64
 }
 
 func NewRegistry(path string) *Registry {
@@ -152,45 +159,70 @@ func (reg *Registry) FinishBlob(uid string, verify digest.Digest) (digest.Digest
 	return checksum, nil
 }
 
+func (reg *Registry) PutBlob(data io.Reader) (*BlobInfo, error) {
+	digester := reg.hash.Digester()
+
+	incoming := filepath.Join(reg.Path, "incoming")
+
+	fd, err := ioutil.TempFile(incoming, "blob.")
+	if err != nil {
+		return nil, err
+	}
+	defer fd.Close()
+
+	out := io.MultiWriter(fd, digester.Hash())
+
+	n, err := io.Copy(out, data)
+	if err != nil {
+		return nil, err
+	}
+
+	err = fd.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	digest := digester.Digest()
+
+	target := reg.PathForBlob(digest)
+
+	err = os.Rename(fd.Name(), target)
+	if err != nil {
+		return nil, err
+	}
+
+	info := BlobInfo{
+		Digest: digest,
+		Size:   n,
+	}
+
+	return &info, nil
+}
+
+func (reg *Registry) PutBlobJSON(data interface{}) (*BlobInfo, error) {
+	raw, err := json.MarshalIndent(data, "", "    ")
+	if err != nil {
+		return nil, err
+	}
+
+	buf := bytes.NewBuffer(raw)
+	info, err := reg.PutBlob(buf)
+
+	return info, err
+}
+
 func (reg *Registry) PutManifest(manifest v1.Manifest) (digest.Digest, error) {
-	data, _ := json.MarshalIndent(manifest, "", "    ")
 
-	checksum := reg.hash.FromBytes(data)
-
-	tmp, err := ioutil.TempDir(reg.Path, ".manifest-*")
-	if err != nil {
-		return "", err
+	for _, layer := range manifest.Layers {
+		if !reg.HasBlob(layer.Digest) {
+			return "", fmt.Errorf("layer missing: %v", layer.Digest)
+		}
 	}
-	defer os.RemoveAll(tmp)
 
-	dest := filepath.Join(tmp, checksum.String())
-	file, err := os.Create(dest)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	_, err = file.Write(data)
-
+	info, err := reg.PutBlobJSON(manifest)
 	if err != nil {
 		return "", err
 	}
 
-	err = file.Close()
-
-	if err != nil {
-		return "", err
-	}
-
-	algorithm := checksum.Algorithm().String()
-	hexdigest := checksum.Hex()
-
-	target := filepath.Join(reg.Path, "blobs", algorithm, hexdigest)
-	err = os.Rename(dest, target)
-
-	if err != nil {
-		return "", err
-	}
-
-	return checksum, nil
+	return info.Digest, nil
 }
