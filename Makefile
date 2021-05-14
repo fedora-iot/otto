@@ -2,6 +2,8 @@
 APP_NAME := otto
 APP_PORT := 3000
 
+WORKSPACE := $(shell pwd)
+
 CONTAINER_RUNTIME := $(shell command -v podman 2> /dev/null || echo docker)
 
 .PHONY: build
@@ -12,6 +14,7 @@ build:
 start:
 	${CONTAINER_RUNTIME} run \
 	-i -t --rm -p=${APP_PORT}:${APP_PORT} \
+	-v ${WORKSPACE}:/source:z \
 	--name="${APP_NAME}" ${APP_NAME}
 
 stop:
