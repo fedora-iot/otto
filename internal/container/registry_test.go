@@ -2,6 +2,7 @@ package container
 
 import (
 	"bytes"
+	"io/ioutil"
 	"log"
 	"os"
 	"testing"
@@ -10,10 +11,14 @@ import (
 )
 
 func TestInit(t *testing.T) {
-	tmp := t.TempDir()
+	tmp, err := ioutil.TempDir("", t.Name())
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmp)
 
 	reg := NewRegistry(tmp)
-	err := reg.Init()
+	err = reg.Init()
 
 	if err != nil {
 		t.Fatalf("failed to initialize registry: %v", err)
@@ -29,10 +34,14 @@ func TestInit(t *testing.T) {
 
 func TestCreateBlobChunked(t *testing.T) {
 
-	tmp := t.TempDir()
+	tmp, err := ioutil.TempDir("", t.Name())
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmp)
 
 	reg := NewRegistry(tmp)
-	err := reg.Init()
+	err = reg.Init()
 
 	if err != nil {
 		t.Fatalf("failed to initialize registry: %v", err)
@@ -75,10 +84,14 @@ func TestCreateBlobChunked(t *testing.T) {
 }
 
 func TestPutBlob(t *testing.T) {
-	tmp := t.TempDir()
+	tmp, err := ioutil.TempDir("", t.Name())
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmp)
 
 	reg := NewRegistry(tmp)
-	err := reg.Init()
+	err = reg.Init()
 
 	if err != nil {
 		t.Fatalf("failed to initialize registry: %v", err)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -18,7 +19,11 @@ func TestMissing(t *testing.T) {
 
 func TestPartial(t *testing.T) {
 
-	tmp := t.TempDir()
+	tmp, err := ioutil.TempDir("", t.Name())
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmp)
 
 	path := filepath.Join(tmp, "partial.toml")
 
