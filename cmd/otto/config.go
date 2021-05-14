@@ -11,6 +11,10 @@ type OttoConfig struct {
 	Root string `toml:"root"`
 
 	Addr string `toml:"listen"`
+	TLS  struct {
+		Cert string `toml:"cert"`
+		Key  string `toml:"key"`
+	} `toml:"tls"`
 }
 
 func (cfg *OttoConfig) LoadConfig(path string) error {
@@ -29,6 +33,14 @@ func (cfg *OttoConfig) LoadConfig(path string) error {
 
 	if new_cfg.Root != "" {
 		cfg.Root = new_cfg.Root
+	}
+
+	if new_cfg.TLS.Cert != "" {
+		cfg.TLS.Cert = new_cfg.TLS.Cert
+	}
+
+	if new_cfg.TLS.Key != "" {
+		cfg.TLS.Key = new_cfg.TLS.Key
 	}
 
 	return nil

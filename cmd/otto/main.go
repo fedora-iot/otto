@@ -350,6 +350,9 @@ func main() {
 		Addr: ":3000",
 	}
 
+	cfg.TLS.Cert = "/etc/otto/server-crt.pem"
+	cfg.TLS.Key = "/etc/otto/server-key.pem"
+
 	cfg.LoadConfig("/etc/otto/otto.toml")
 
 	server := NewServer(cfg.Root)
@@ -380,7 +383,7 @@ func main() {
 		w.Write([]byte("ok"))
 	})
 
-	err = http.ListenAndServeTLS(cfg.Addr, "/etc/otto/server-crt.pem", "/etc/otto/server-key.pem", r)
+	err = http.ListenAndServeTLS(cfg.Addr, cfg.TLS.Cert, cfg.TLS.Key, r)
 	if err != nil {
 		log.Fatalf("Failed to server: %v", err)
 	}
