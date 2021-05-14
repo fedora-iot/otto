@@ -169,7 +169,11 @@ func (server *Server) UploadChunked(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fd.Seek(ranges[0].start, 0)
+		_, err = fd.Seek(ranges[0].start, 0)
+		if err != nil {
+			http.Error(w, "Invalid range", http.StatusRequestedRangeNotSatisfiable)
+			return
+		}
 	}
 
 	n, err := io.CopyN(fd, r.Body, r.ContentLength)
@@ -307,7 +311,10 @@ func (server *Server) ImportCommit(ci CommitInfo) (string, error) {
 	source := filepath.Join(tmp, strings.TrimLeft(ci.repo, "/"))
 
 	fmt.Printf("Pulling commit (%s) into repo\n", ci.ref)
-	server.repo.PullLocal(source, ci.ref)
+	err = server.repo.PullLocal(source, ci.ref)
+	if err != nil {
+		return "", fmt.Errorf("could not pull commit: %w", err)
+	}
 
 	cid, err := server.repo.RevParse(ci.ref)
 
@@ -353,10 +360,13 @@ func main() {
 	cfg.TLS.Cert = "/etc/otto/server-crt.pem"
 	cfg.TLS.Key = "/etc/otto/server-key.pem"
 
-	cfg.LoadConfig("/etc/otto/otto.toml")
+	err := cfg.LoadConfig("/etc/otto/otto.toml")
+	if err != nil {
+		log.Fatalf("Failed to read configuration: %v", err)
+	}
 
 	server := NewServer(cfg.Root)
-	err := server.Init()
+	err = server.Init()
 
 	if err != nil {
 		log.Fatalf("Failed to initialize server: %v", err)
@@ -366,7 +376,8 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("nothing to see here"))
+		_, err := w.Write([]byte("nothing to see here"))
+		fmt.Printf("i/o error: %v", err)
 	})
 
 	OstreeServer(r, "/ostree/repo", server.repo.Path())
@@ -380,7 +391,8 @@ func main() {
 	r.Put("/v2/{repo}/manifests/{reference}", server.UploadManifest)
 
 	r.Get("/v2/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("ok"))
+		_, err := w.Write([]byte("nothing to see here"))
+		fmt.Printf("i/o error: %v", err)
 	})
 
 	err = http.ListenAndServeTLS(cfg.Addr, cfg.TLS.Cert, cfg.TLS.Key, r)

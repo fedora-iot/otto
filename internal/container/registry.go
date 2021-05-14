@@ -159,7 +159,12 @@ func (reg *Registry) FinishBlob(uid string, verify digest.Digest) (digest.Digest
 	}
 
 	if verify.Algorithm() != reg.hash {
-		fd.Seek(0, 0)
+		_, err = fd.Seek(0, 0)
+
+		if err != nil {
+			return "", err
+		}
+
 		checksum, err = reg.hash.FromReader(fd)
 		if err != nil {
 			return "", err
