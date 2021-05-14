@@ -17,8 +17,12 @@ import (
 type Registry struct {
 	Path string
 
-	hash  digest.Algorithm
-	blobs string
+	//default hash algorithm
+	hash digest.Algorithm
+
+	// directories
+	blobs    string
+	incoming string
 }
 
 type BlobInfo struct {
@@ -47,8 +51,8 @@ func (reg *Registry) Init() error {
 		return err
 	}
 
-	incoming := filepath.Join(reg.Path, "incoming")
-	err = os.MkdirAll(incoming, 0700)
+	reg.incoming = filepath.Join(reg.Path, "incoming")
+	err = os.MkdirAll(reg.incoming, 0700)
 	if err != nil {
 		return err
 	}
@@ -105,7 +109,7 @@ func (reg *Registry) OpenBlob(d digest.Digest, info *os.FileInfo) (*os.File, err
 
 func (reg *Registry) BeginBlob() (string, error) {
 	uid := uuid.New().String()
-	dest := filepath.Join(reg.Path, "incoming", uid)
+	dest := filepath.Join(reg.incoming, uid)
 
 	fd, err := os.Create(dest)
 	if err != nil {
@@ -117,7 +121,7 @@ func (reg *Registry) BeginBlob() (string, error) {
 }
 
 func (reg *Registry) ResumeBlob(uid string, info *os.FileInfo) (*os.File, error) {
-	dest := filepath.Join(reg.Path, "incoming", uid)
+	dest := filepath.Join(reg.incoming, uid)
 
 	fd, err := os.OpenFile(dest, os.O_WRONLY, 0644)
 	if err != nil {
@@ -137,7 +141,7 @@ func (reg *Registry) ResumeBlob(uid string, info *os.FileInfo) (*os.File, error)
 }
 
 func (reg *Registry) FinishBlob(uid string, verify digest.Digest) (digest.Digest, error) {
-	dest := filepath.Join(reg.Path, "incoming", uid)
+	dest := filepath.Join(reg.incoming, uid)
 
 	fd, err := os.Open(dest)
 	if err != nil {
@@ -183,9 +187,7 @@ func (reg *Registry) FinishBlob(uid string, verify digest.Digest) (digest.Digest
 func (reg *Registry) PutBlob(data io.Reader) (*BlobInfo, error) {
 	digester := reg.hash.Digester()
 
-	incoming := filepath.Join(reg.Path, "incoming")
-
-	fd, err := ioutil.TempFile(incoming, "blob.")
+	fd, err := ioutil.TempFile(reg.incoming, "blob.")
 	if err != nil {
 		return nil, err
 	}
