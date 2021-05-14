@@ -28,3 +28,22 @@ Additionally the OSTree summary is updated.
 
 [oci-spec]: https://github.com/opencontainers/image-spec
 [reg-api]: https://docs.docker.com/registry/spec/api/
+
+## Getting started
+A Dockerfile and a simple Makefile to generate the image, start and
+stop the container is included:
+
+```
+make build  # build otto, also generates TLS certificates
+make start  # start the container, mounts $pwd at /source
+make stop   # stop the container
+```
+
+The `skopeo` binary is installed in the container so that it is easy
+to test pushing an existing container:
+
+```
+docker exec -it otto /bin/bash
+cd /source
+skopeo copy oci-archive:container.tar docker://localhost:3000/test
+```
