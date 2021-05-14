@@ -353,7 +353,7 @@ func OstreeServer(r chi.Router, public string, repo string) {
 func main() {
 
 	cfg := OttoConfig{
-		Root: "/srv/root",
+		Root: "/srv/otto",
 		Addr: ":3000",
 	}
 
