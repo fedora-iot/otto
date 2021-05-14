@@ -240,6 +240,10 @@ func (reg *Registry) PutManifest(manifest v1.Manifest) (digest.Digest, error) {
 		}
 	}
 
+	if !reg.HasBlob(manifest.Config.Digest) {
+		return "", fmt.Errorf("layer missing: %v", manifest.Config.Digest)
+	}
+
 	info, err := reg.PutBlobJSON(manifest)
 	if err != nil {
 		return "", err
