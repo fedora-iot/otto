@@ -294,6 +294,7 @@ func (server *Server) ImportCommit(ci CommitInfo) (string, error) {
 	}
 	defer os.RemoveAll(tmp)
 
+	fmt.Printf("Extracting tarball\n")
 	cmd := exec.Command("tar", "-x", "--auto-compress", "-f", blob, "-C", tmp)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
@@ -305,6 +306,7 @@ func (server *Server) ImportCommit(ci CommitInfo) (string, error) {
 
 	source := filepath.Join(tmp, strings.TrimLeft(ci.repo, "/"))
 
+	fmt.Printf("Pulling commit (%s) into repo\n", ci.ref)
 	server.repo.PullLocal(source, ci.ref)
 
 	cid, err := server.repo.RevParse(ci.ref)
@@ -313,6 +315,7 @@ func (server *Server) ImportCommit(ci CommitInfo) (string, error) {
 		return "", err
 	}
 
+	fmt.Printf("Pulled %s\n", cid)
 	err = server.repo.UpdateSummary()
 
 	if err != nil {
