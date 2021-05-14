@@ -14,7 +14,7 @@ COPY . .
 RUN GOBIN=/usr/local/bin/ go install -v ./cmd/otto/
 
 FROM registry.fedoraproject.org/fedora-minimal
-RUN microdnf install -y ostree tar
+RUN microdnf install -y ostree tar skopeo
 COPY --from=builder /usr/local/bin/otto /usr/libexec/otto/
 
 RUN mkdir -p /etc/otto
