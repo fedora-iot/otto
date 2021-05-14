@@ -7,14 +7,11 @@ if [ $UID != 0 ]; then
   exit 1
 fi
 
-TEST_PATH=${1:-test}
-TEST_DATA=${TEST_PATH}/data
-
 CA_DIR="/etc/otto"
 echo "Generating certificates"
 mkdir -p ${CA_DIR}
 
-CONFIG="${TEST_DATA}/openssl.conf"
+CONFIG="openssl.conf"
 
 # The CA
 echo "-=[ CA"
@@ -43,6 +40,6 @@ openssl ca -config "$CONFIG" -batch \
 
 echo "-=[ Updating system trust chain"
 cp ${CA_DIR}/ca-crt.pem \
-   /etc/pki/ca-trust/source/anchors/osbuild-ca-crt.pem
+   /etc/pki/ca-trust/source/anchors/otto-ca-crt.pem
 
 update-ca-trust
