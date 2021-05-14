@@ -368,5 +368,8 @@ func main() {
 		w.Write([]byte("ok"))
 	})
 
-	http.ListenAndServeTLS(":3000", "/etc/otto/server-crt.pem", "/etc/otto/server-key.pem", r)
+	err = http.ListenAndServeTLS(":3000", "/etc/otto/server-crt.pem", "/etc/otto/server-key.pem", r)
+	if err != nil {
+		log.Fatalf("Failed to server: %v", err)
+	}
 }
