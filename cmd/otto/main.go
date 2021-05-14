@@ -344,18 +344,19 @@ func OstreeServer(r chi.Router, public string, repo string) {
 }
 
 func main() {
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("nothing to see here"))
-	})
-
 	server := NewServer("/tmp/otto")
 	err := server.Init()
 
 	if err != nil {
 		log.Fatalf("Failed to initialize server: %v", err)
 	}
+
+	// Setup routes
+	r := chi.NewRouter()
+	r.Use(middleware.Logger)
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("nothing to see here"))
+	})
 
 	OstreeServer(r, "/ostree/repo", server.repo.Path())
 
