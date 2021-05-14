@@ -344,7 +344,15 @@ func OstreeServer(r chi.Router, public string, repo string) {
 }
 
 func main() {
-	server := NewServer("/tmp/otto")
+
+	cfg := OttoConfig{
+		Root: "/srv/root",
+		Addr: ":3000",
+	}
+
+	cfg.LoadConfig("/etc/otto/otto.toml")
+
+	server := NewServer(cfg.Root)
 	err := server.Init()
 
 	if err != nil {
@@ -372,7 +380,7 @@ func main() {
 		w.Write([]byte("ok"))
 	})
 
-	err = http.ListenAndServeTLS(":3000", "/etc/otto/server-crt.pem", "/etc/otto/server-key.pem", r)
+	err = http.ListenAndServeTLS(cfg.Addr, "/etc/otto/server-crt.pem", "/etc/otto/server-key.pem", r)
 	if err != nil {
 		log.Fatalf("Failed to server: %v", err)
 	}
