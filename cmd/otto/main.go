@@ -15,6 +15,7 @@ import (
 
 	_ "crypto/sha512"
 
+	"github.com/gicmo/otto/internal/container"
 	"github.com/gicmo/otto/internal/ostree"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -25,14 +26,14 @@ import (
 type Server struct {
 	root string
 
-	oci  *Registry
+	oci  *container.Registry
 	repo *ostree.Repo
 }
 
 func NewServer(root string) *Server {
 	return &Server{
 		root: root,
-		oci:  NewRegistry(filepath.Join(root, "oci")),
+		oci:  container.NewRegistry(filepath.Join(root, "oci")),
 		repo: ostree.NewRepo(filepath.Join(root, "ostree", "repo")),
 	}
 }
