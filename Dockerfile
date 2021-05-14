@@ -1,6 +1,10 @@
 FROM registry.fedoraproject.org/fedora-minimal AS builder
 RUN mkdir /workspace && microdnf -y install golang && microdnf -y clean all
 WORKDIR /workspace
+
+COPY ./go.mod ./go.sum .
+RUN go mod download
+
 COPY . .
 RUN GOBIN=/usr/local/bin/ go install -v ./cmd/otto/
 
