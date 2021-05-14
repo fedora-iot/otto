@@ -1,10 +1,12 @@
-FROM registry.access.redhat.com/ubi8/go-toolset:latest AS builder
+FROM registry.fedoraproject.org/fedora-minimal AS builder
+RUN mkdir /workspace && microdnf -y install golang && microdnf -y clean all
+WORKDIR /workspace
 COPY . .
-RUN go install ./cmd/otto/
+RUN GOBIN=/usr/local/bin/ go install -v ./cmd/otto/
 
-FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
-RUN microdnf install ostree tar
-COPY --from=builder /opt/app-root/src/go/bin/otto /usr/libexec/otto/
+FROM registry.fedoraproject.org/fedora-minimal
+RUN microdnf install -y ostree tar
+COPY --from=builder /usr/local/bin/otto /usr/libexec/otto/
 
-EXPOSE 8000
+EXPOSE 3000
 CMD ["/usr/libexec/otto/otto"]
