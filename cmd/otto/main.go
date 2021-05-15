@@ -288,6 +288,47 @@ func (server *Server) UploadManifest(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+func (server *Server) GetManifest(w http.ResponseWriter, r *http.Request) {
+	repo := chi.URLParam(r, "repo")
+	reference := chi.URLParam(r, "reference")
+
+	d := MustParseDigest(reference, w)
+	if d == "" {
+		return
+	}
+
+	for k, v := range r.Header {
+		fmt.Printf("%s: %s\n", k, v)
+	}
+
+	fmt.Printf("repo: '%s', digest: '%s'\n", repo, d.String())
+
+	var fi os.FileInfo
+	fd, err := server.oci.ReadManifest(d, &fi)
+	if err != nil {
+		if os.IsNotExist(err) {
+			http.Error(w, "Blob does not exist", http.StatusNotFound)
+			return
+		}
+
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// header
+	w.Header().Set("Docker-Content-Digest", d.String())
+	w.Header().Set("Content-Type", v1.MediaTypeImageManifest)
+
+	//body
+	_, err = io.CopyN(w, fd, fi.Size())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func (server *Server) ImportCommit(ci CommitInfo) (string, error) {
 
 	blob := server.oci.PathForBlob(ci.layer)
@@ -389,6 +430,7 @@ func main() {
 	r.Patch("/v2/{repo}/blobs/uploads/{uuid}", server.UploadChunked)
 	r.Put("/v2/{repo}/blobs/uploads/{uuid}", server.UploadFinish)
 	r.Put("/v2/{repo}/manifests/{reference}", server.UploadManifest)
+	r.Get("/v2/{repo}/manifests/{reference}", server.GetManifest)
 
 	r.Get("/v2/", func(w http.ResponseWriter, r *http.Request) {
 		_, err := w.Write([]byte("nothing to see here"))
