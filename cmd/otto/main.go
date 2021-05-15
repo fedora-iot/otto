@@ -121,6 +121,12 @@ func (server *Server) GetBlob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer fd.Close()
+
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", fi.Size()))
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Docker-Content-Digest", d.String())
+
 	_, err = io.CopyN(w, fd, fi.Size())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
