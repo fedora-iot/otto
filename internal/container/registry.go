@@ -281,3 +281,25 @@ func (reg *Registry) PutManifest(manifest v1.Manifest) (digest.Digest, error) {
 
 	return info.Digest, nil
 }
+
+func (reg *Registry) ReadManifest(d digest.Digest, info *os.FileInfo) (io.ReadCloser, error) {
+	dir := reg.PathForManifest(d)
+
+	blob := filepath.Join(dir, "manifest.json")
+
+	fd, err := os.Open(blob)
+	if err != nil {
+		return nil, err
+	}
+
+	if info == nil {
+		return fd, nil
+	}
+
+	*info, err = fd.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	return fd, nil
+}
