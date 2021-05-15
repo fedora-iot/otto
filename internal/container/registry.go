@@ -21,8 +21,9 @@ type Registry struct {
 	hash digest.Algorithm
 
 	// directories
-	blobs    string
-	incoming string
+	blobs     string
+	incoming  string
+	manifests string
 }
 
 type BlobInfo struct {
@@ -57,11 +58,21 @@ func (reg *Registry) Init() error {
 		return err
 	}
 
+	reg.manifests = filepath.Join(reg.Path, "manifests")
+	err = os.MkdirAll(reg.incoming, 0700)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (reg *Registry) PathForBlob(d digest.Digest) string {
 	return filepath.Join(reg.Path, "blobs", d.Algorithm().String(), d.Hex())
+}
+
+func (reg *Registry) PathForManifest(d digest.Digest) string {
+	return filepath.Join(reg.manifests, d.String())
 }
 
 func (reg *Registry) HasBlob(d digest.Digest) bool {
@@ -247,6 +258,23 @@ func (reg *Registry) PutManifest(manifest v1.Manifest) (digest.Digest, error) {
 	}
 
 	info, err := reg.PutBlobJSON(manifest)
+	if err != nil {
+		return "", err
+	}
+
+	dir := filepath.Join(reg.manifests, info.Digest.String())
+	err = os.Mkdir(dir, 0700)
+	if err != nil {
+		if os.IsExist(err) {
+			return info.Digest, nil
+		}
+	}
+
+	source := reg.PathForBlob(info.Digest)
+
+	js := filepath.Join(dir, "manifest.json")
+	err = os.Link(source, js)
+
 	if err != nil {
 		return "", err
 	}
