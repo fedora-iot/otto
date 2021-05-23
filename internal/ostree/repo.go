@@ -2,6 +2,7 @@ package ostree
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -44,6 +45,11 @@ func (repo *Repo) Init(mode RepoMode) error {
 	err = cmd.Run()
 
 	return err
+}
+
+func (repo *Repo) GetParentCommit(commit string) (string, error) {
+	ref := fmt.Sprintf("%s^", commit)
+	return repo.RevParse(ref)
 }
 
 func (repo *Repo) PullLocal(source string, ref string) error {
