@@ -280,7 +280,7 @@ func (server *Server) UploadManifest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cid, err := server.ImportCommit(commit)
+	cid, err := server.ImportCommitFromImage(commit)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -335,7 +335,7 @@ func (server *Server) GetManifest(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (server *Server) ImportCommit(ci CommitInfo) (string, error) {
+func (server *Server) ImportCommitFromImage(ci CommitInfo) (string, error) {
 
 	blob := server.oci.PathForBlob(ci.layer)
 
